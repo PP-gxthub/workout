@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Workout Routine</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #808aca7d;
+            --dark-color: #5e4028;
+            --gray-light: #f8f9fa;
+            --gray-done: #2ecc71;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        /* หัวข้อ */
+        .header {
+            background-color: var(--primary-color);
+            color: var(--dark-color);
+            padding: 24px;
+            text-align: center;
+            border-bottom: 5px solid var(--dark-color);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px rgba(94, 64, 40, 0.3);
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 3px rgba(94, 64, 40, 0.25);
+        }
+
+        /* ตาราง */
+        .workout-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .workout-table th {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 14px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .workout-table td {
+            padding: 18px 14px;
+            border-bottom: 1px solid #eeeeee;
+            text-align: center;
+            font-size: 1.05rem;
+        }
+
+        .workout-table tr:hover {
+            background-color: var(--gray-light);
+        }
+
+        .col-num {
+            font-weight: bold;
+            color: #555;
+            width: 12%;
+        }
+
+        .col-name {
+            font-weight: 700;
+            text-align: left !important;
+            padding-left: 24px !important;
+            color: var(--dark-color);
+        }
+
+        .col-sets {
+            font-weight: 600;
+            color: #444;
+            width: 25%;
+        }
+
+        .col-action {
+            width: 15%;
+        }
+
+        /* ปุ่มวงกลม Checkbox */
+        .check-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #b2bec3;
+            background-color: #dfe6e9;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+
+        .check-btn.done {
+            background-color: var(--gray-done);
+            border-color: var(--gray-done);
+            transform: scale(1.1);
+        }
+
+        .check-btn::after {
+            content: '✓';
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .check-btn.done::after {
+            display: block;
+        }
+
+        /* สำหรับแสดงข้อความในวันพักผ่อน */
+        .rest-day-message {
+            padding: 50px 20px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.6rem; }
+            .workout-table th, .workout-table td { padding: 12px 8px; font-size: 0.95rem; }
+            .col-name { padding-left: 12px !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 id="day-title">LOADING...</h1>
+        <p id="day-description">-</p>
+    </div>
+
+    <div id="workout-content">
+        <table class="workout-table">
+            <thead>
+                <tr>
+                    <th>ลำดับ</th>
+                    <th style="text-align: left; padding-left: 24px;">ท่าเล่น</th>
+                    <th>จำนวน</th>
+                    <th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody id="workout-list">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 1. คลังข้อมูลโปรแกรมการออกกำลังกายวัน MON - SAT (คุณสามารถแก้ไขชื่อท่าและจำนวนตรงนี้ได้เลย)
+    const workoutProgram = {
+        "MON": {
+            description: "Back + Chest",
+            exercises: [
+                { name: "ONE ARM DUMBELL ROW", sets: "3 SET", reps: "10-12 reps" },
+                { name: "CHEST PRESS", sets: "3 SET", reps: "8-12 reps" },
+                { name: "WIDE PUSH-UP", sets: "3 SET", reps: "8-12 reps" },
+                { name: "SHOULDER PRESS", sets: "3 SET", reps: "10 reps" },
+                { name: "KNEE RAISE", sets: "3 SET", reps: "12-15 reps" },
+                { name: "PLANK", sets: "1 SET", reps: "1 min" }
+
+            ]
+        },
+        "TUE": {
+            description: "Lower + Core",
+            exercises: [
+                { name: "CARDIO", sets: "1 SET", reps: "10-15 min" },
+                { name: "SQUAT", sets: "3 SET", reps: "12 reps" },
+                { name: "ROMANIAN DEADLIFTS", sets: "3 SET", reps: "10 reps" },
+                { name: "GLUTE BRIDGE", sets: "3 SET", reps: "10-12 reps" },
+                { name: "STANDING CALF RAISE", sets: "3 SET", reps: "15 reps" },
+                { name: "PLANK", sets: "3 SET", reps: "30 sec" }
+            ]
+        },
+        "WED": {
+            description: "Chest Focus",
+            exercises: [
+                { name: "PUSH-UP", sets: "3 SET", reps: "8-15 reps" },
+                { name: "CHEST PRESS", sets: "3 SET", reps: "10 reps" },
+                { name: "DUMBBELL FLY", sets: "2 SET", reps: "12 reps" },
+                { name: "INCLINE PUSH-UP", sets: "2 SET", reps: "10-15 reps" },
+                { name: "LATERAL REISE", sets: "2 SET", reps: "12 reps" },
+                { name: "PLANK", sets: "1 SET", reps: "1 min" }
+            ]
+        },
+        "THU": {
+            description: "Back Focus",
+            exercises: [
+                { name: "ONE ARM DUMBELL ROW", sets: "4 SET", reps: "12 reps" },
+                { name: "FACE PULLS", sets: "3 SET", reps: "15 reps" },
+                { name: "BARBELL BICEP CURL", sets: "3 SET", reps: "12 reps" },
+                { name: "HAMMER CURL", sets: "3 SET", reps: "12 reps" }
+            ]
+        },
+        "FRI": {
+            description: "Upper Mix",
+            exercises: [
+                { name: "BARBELL BENCH PRESS", sets: "4 SET", reps: "10 reps" },
+                { name: "INCLINE DUMBBELL PRESS", sets: "3 SET", reps: "12 reps" },
+                { name: "CABLE CROSSOVER", sets: "3 SET", reps: "15 reps" },
+                { name: "TRICEP PUSHCDOWN", sets: "3 SET", reps: "12 reps" },
+                { name: "OVERHEAD TRICEP EXTENSION", sets: "3 SET", reps: "12 reps" }
+            ]
+        },
+        "SAT": {
+            description: "Light Upper Day",
+            exercises: [
+                { name: "BURPEES", sets: "3 SET", reps: "10 reps" },
+                { name: "KETTLEBELL SWINGS", sets: "3 SET", reps: "15 reps" },
+                { name: "THRUSTERS", sets: "3 SET", reps: "12 reps" },
+                { name: "BOX JUMPS", sets: "3 SET", reps: "12 reps" },
+                { name: "PLANK JACKS", sets: "3 SET", reps: "45 วินาที" }
+            ]
+        },
+        "SUN": {
+            description: "Rest Day",
+            exercises: [] // วันอาทิตย์ว่างไว้เป็นวันพัก
+        }
+    };
+
+    // อาร์เรย์ช่วยแปลงเลขวันของ JavaScript (0=อาทิตย์, 1=จันทร์,..., 6=เสาร์) ให้เป็น Key
+    const daysMap = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+    // 2. ฟังก์ชันเริ่มการทำงานดึงวันเวลาเรียบลไทม์
+    function initDynamicTable() {
+        const todayIndex = new Date().getDay(); // ดึงเลขวันปัจจุบัน (0-6)
+        const todayKey = daysMap[todayIndex];   // แปลงเป็นตัวย่อ เช่น "TUE"
+        const currentProgram = workoutProgram[todayKey];
+
+        // แสดงชื่อวันและคำอธิบายบน Header
+        document.getElementById("day-title").innerText = todayKey;
+        document.getElementById("day-description").innerText = currentProgram.description;
+
+        const workoutContent = document.getElementById("workout-content");
+        const workoutList = document.getElementById("workout-list");
+
+        // ถ้าเป็นวันอาทิตย์ (หรือวันที่มีสเกดดูลว่าง) ให้ซ่อนตารางแล้วแสดงข้อความวันพัก
+        if (currentProgram.exercises.length === 0) {
+            workoutContent.innerHTML = `<div class="rest-day-message">💤 วันนี้เป็นวันหยุดพักผ่อน ยืดเหยียดร่างกายเบา ๆ กันครับ!</div>`;
+            return;
+        }
+
+        // วนลูปสร้างแถวตารางท่าเล่นตามข้อมูลของวันนั้น ๆ
+        currentProgram.exercises.forEach((ex, index) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td class="col-num">${index + 1}</td>
+                <td class="col-name">${ex.name}</td>
+                <td class="col-sets">${ex.sets} <br> <span style="font-size: 0.9rem; color: #777;">${ex.reps}</span></td>
+                <td class="col-action">
+                    <button class="check-btn" onclick="toggleTask(this)"></button>
+                </td>
+            `;
+            workoutList.appendChild(tr);
+        });
+    }
+
+    // ฟังก์ชันจัดการตอนกดปุ่มติ๊กสถานะ
+    function toggleTask(button) {
+        button.classList.toggle('done');
+
+        const allButtons = document.querySelectorAll('.check-btn');
+        const doneButtons = document.querySelectorAll('.check-btn.done');
+
+        if (allButtons.length === doneButtons.length) {
+            confetti({
+                particleCount: 150,     
+                spread: 85,             
+                origin: { x: 0.5, y: 1.0 }, 
+                angle: 90,              
+                gravity: 1.1,           
+                scalar: 1.2             
+            });
+        }
+    }
+
+    // เรียกใช้งานฟังก์ชันทันทีเมื่อเปิดหน้าเว็บ
+    initDynamicTable();
+</script>
+
+</body>
+</html>
