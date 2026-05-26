@@ -172,13 +172,13 @@
                 </tr>
             </thead>
             <tbody id="workout-list">
-                </tbody>
+            </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // 1. คลังข้อมูลโปรแกรมการออกกำลังกายวัน MON - SAT (คุณสามารถแก้ไขชื่อท่าและจำนวนตรงนี้ได้เลย)
+    // 1. คลังข้อมูลโปรแกรมการออกกำลังกายวัน MON - SAT
     const workoutProgram = {
         "MON": {
             description: "Back + Chest",
@@ -189,7 +189,6 @@
                 { name: "SHOULDER PRESS", sets: "3 SET", reps: "10 reps" },
                 { name: "KNEE RAISE", sets: "3 SET", reps: "12-15 reps" },
                 { name: "PLANK", sets: "1 SET", reps: "1 min" }
-
             ]
         },
         "TUE": {
@@ -229,7 +228,7 @@
                 { name: "BARBELL BENCH PRESS", sets: "4 SET", reps: "10 reps" },
                 { name: "INCLINE DUMBBELL PRESS", sets: "3 SET", reps: "12 reps" },
                 { name: "CABLE CROSSOVER", sets: "3 SET", reps: "15 reps" },
-                { name: "TRICEP PUSHCDOWN", sets: "3 SET", reps: "12 reps" },
+                { name: "TRICEP PUSHDOWN", sets: "3 SET", reps: "12 reps" },
                 { name: "OVERHEAD TRICEP EXTENSION", sets: "3 SET", reps: "12 reps" }
             ]
         },
@@ -245,54 +244,84 @@
         },
         "SUN": {
             description: "Rest Day",
-            exercises: [] // วันอาทิตย์ว่างไว้เป็นวันพัก
+            exercises: []
         }
     };
 
-    // อาร์เรย์ช่วยแปลงเลขวันของ JavaScript (0=อาทิตย์, 1=จันทร์,..., 6=เสาร์) ให้เป็น Key
     const daysMap = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    
+    // ดึงค่า วัน/เดือน/ปี ปัจจุบัน เพื่อใช้เป็น Key หลักในการเซฟแยกวัน
+    const dateTodayString = new Date().toDateString(); 
 
-    // 2. ฟังก์ชันเริ่มการทำงานดึงวันเวลาเรียบลไทม์
     function initDynamicTable() {
-        const todayIndex = new Date().getDay(); // ดึงเลขวันปัจจุบัน (0-6)
-        const todayKey = daysMap[todayIndex];   // แปลงเป็นตัวย่อ เช่น "TUE"
+        const todayIndex = new Date().getDay(); 
+        const todayKey = daysMap[todayIndex];   
         const currentProgram = workoutProgram[todayKey];
 
-        // แสดงชื่อวันและคำอธิบายบน Header
         document.getElementById("day-title").innerText = todayKey;
         document.getElementById("day-description").innerText = currentProgram.description;
 
         const workoutContent = document.getElementById("workout-content");
         const workoutList = document.getElementById("workout-list");
 
-        // ถ้าเป็นวันอาทิตย์ (หรือวันที่มีสเกดดูลว่าง) ให้ซ่อนตารางแล้วแสดงข้อความวันพัก
         if (currentProgram.exercises.length === 0) {
             workoutContent.innerHTML = `<div class="rest-day-message">💤 วันนี้เป็นวันหยุดพักผ่อน ยืดเหยียดร่างกายเบา ๆ กันครับ!</div>`;
             return;
         }
 
-        // วนลูปสร้างแถวตารางท่าเล่นตามข้อมูลของวันนั้น ๆ
+        // --- โค้ดดึงสถานะการติ๊กที่บันทึกไว้ในอดีต ---
+        // ตรวจสอบว่ามีข้อมูลของ "วันนี้" ถูกเซฟไว้ในเครื่องไหม
+        const savedData = localStorage.getItem(`workout_${dateTodayString}`);
+        let completedIndexes = [];
+        if (savedData) {
+            completedIndexes = JSON.parse(savedData);
+        } else {
+            // หากไม่มีข้อมูลของวันนี้ (เป็นวันใหม่แกะกล่อง) ให้ไล่ลบข้อมูลขยะของวันเก่า ๆ เพื่อประหยัดพื้นที่เบราว์เซอร์
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith("workout_")) {
+                    localStorage.removeItem(key);
+                }
+            });
+        }
+
         currentProgram.exercises.forEach((ex, index) => {
             const tr = document.createElement("tr");
+            
+            // เช็คว่าท่านี้เคยติ๊กผ่านไปแล้วหรือยังจากอาร์เรย์ที่ดึงมา
+            const isDone = completedIndexes.includes(index);
+            const doneClass = isDone ? "done" : "";
+
             tr.innerHTML = `
                 <td class="col-num">${index + 1}</td>
                 <td class="col-name">${ex.name}</td>
                 <td class="col-sets">${ex.sets} <br> <span style="font-size: 0.9rem; color: #777;">${ex.reps}</span></td>
                 <td class="col-action">
-                    <button class="check-btn" onclick="toggleTask(this)"></button>
+                    <button class="check-btn ${doneClass}" data-index="${index}" onclick="toggleTask(this)"></button>
                 </td>
             `;
             workoutList.appendChild(tr);
         });
     }
 
-    // ฟังก์ชันจัดการตอนกดปุ่มติ๊กสถานะ
     function toggleTask(button) {
         button.classList.toggle('done');
 
+        // --- โค้ดบันทึกสถานะลงเบราว์เซอร์ลบล่าสุด ---
         const allButtons = document.querySelectorAll('.check-btn');
-        const doneButtons = document.querySelectorAll('.check-btn.done');
+        let completedIndexes = [];
 
+        // วนลูปดูว่าปุ่มไหนโดนติ๊กบ้าง แล้วเก็บลำดับ (index) ของปุ่มนั้นลงอาร์เรย์
+        allButtons.forEach(btn => {
+            if (btn.classList.contains('done')) {
+                completedIndexes.push(parseInt(btn.getAttribute('data-index')));
+            }
+        });
+
+        // เซฟข้อมูลลง localStorage โดยใช้ตัวแปรวันที่ (เช่น workout_Tue May 26 2026) เป็นชื่อ Key
+        localStorage.setItem(`workout_${dateTodayString}`, JSON.stringify(completedIndexes));
+
+        // เอฟเฟกต์พลุดังเมื่อทำครบถ้วน
+        const doneButtons = document.querySelectorAll('.check-btn.done');
         if (allButtons.length === doneButtons.length) {
             confetti({
                 particleCount: 150,     
@@ -305,7 +334,6 @@
         }
     }
 
-    // เรียกใช้งานฟังก์ชันทันทีเมื่อเปิดหน้าเว็บ
     initDynamicTable();
 </script>
 
